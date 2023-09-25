@@ -11,6 +11,7 @@ from keras import layers
 from glob import glob
 import time
 import cv2
+import multiprocessing
 
 
 def infer(model, original_image):
@@ -38,6 +39,7 @@ def read_image(image_path):
 
 if __name__=='__main__':
     print("hello")
+    pool = multiprocessing.Pool(4)
 
     desired_size = (600, 400)
     new_model = tf.keras.models.load_model('mirnet', compile=False)
@@ -50,6 +52,8 @@ if __name__=='__main__':
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 600)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 400)
 
+    count = 0 
+
     # while을 통해서 카메라에서 프레임을 지속적으로 받는다.
     while cv2.waitKey(33) < 0:
         # ret = 카메라 상태, 비정상이면 False
@@ -58,9 +62,15 @@ if __name__=='__main__':
         # flip : flipcode 가 0 이면 가로대칭 변경. 1이면 세로대칭 변경 
         
         original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
-        _, enhanced_image = infer(new_model, original_image)
+        #_, enhanced_image = infer(new_model, original_image)
+        image_part = []
+        for i in range(4):
+            _, image_part[i] = pool.apply(infer, (new_model, frame))
 
-        cv2.imshow("VideoFrame", enhanced_image)
+            pool.close()
+            pool.join()
+        cv2.imshow("VideoFrame", frame)
+        #cv2.imshow("VideoFrame", enhanced_image)
     
     # 카메라 장치에서 받아온 메모리 해제
     capture.release()
