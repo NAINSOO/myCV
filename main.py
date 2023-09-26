@@ -49,8 +49,8 @@ if __name__=='__main__':
 
     # 카메라의 속성 설정 메서드 set
     # capture.set(propid, value)로 카메라의 속성(propid)과 값(value)을 설정
-    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 600)
-    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 400)
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 600*2)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 400*2)
 
     count = 0 
 
@@ -61,11 +61,22 @@ if __name__=='__main__':
         ret, frame = capture.read()
         # flip : flipcode 가 0 이면 가로대칭 변경. 1이면 세로대칭 변경 
         
-        original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
+        original_image_part = []
+        original_image_part.append(frame[0:400, 0:600].copy())
+        original_image_part.append(frame[400,800, 0:600].copy())
+        original_image_part.append(frame[0:400, 600:1200].copy())
+        original_image_part.append(frame[400:800, 600:1200].copy())
+
+        #original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
         #_, enhanced_image = infer(new_model, original_image)
         image_part = []
+        procs = []
         for i in range(4):
-            _, image_part[i] = pool.apply(infer, (new_model, frame))
+            p = multiprocessing.Process(target=infer, args=(new_model, original_image_part[i] ))
+            p.start()
+            
+            procs.append(p)
+            _, image_part[i] = pool.apply(infer, (new_model, original_image_part[i]))
 
             pool.close()
             pool.join()
