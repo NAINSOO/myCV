@@ -36,10 +36,12 @@ def read_image(image_path):
     image = tf.cast(image, dtype=tf.float32) / 255.0
     return image
 
+def multi_infer(model, original_image, n):
+    _, enhanced_image = infer(model, original_image)
+    image_part[i] = enhanced_image
 
 if __name__=='__main__':
     print("hello")
-    pool = multiprocessing.Pool(4)
 
     desired_size = (600, 400)
     new_model = tf.keras.models.load_model('mirnet', compile=False)
@@ -63,25 +65,33 @@ if __name__=='__main__':
         
         original_image_part = []
         original_image_part.append(frame[0:400, 0:600].copy())
-        original_image_part.append(frame[400,800, 0:600].copy())
+        original_image_part.append(frame[400:800, 0:600].copy())
         original_image_part.append(frame[0:400, 600:1200].copy())
         original_image_part.append(frame[400:800, 600:1200].copy())
 
         #original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
         #_, enhanced_image = infer(new_model, original_image)
-        image_part = []
+        image_part = [0]*4
         procs = []
         for i in range(4):
-            p = multiprocessing.Process(target=infer, args=(new_model, original_image_part[i] ))
-            p.start()
-            
+            p = multiprocessing.Process(target=multi_infer, args=(new_model, original_image_part[i], i))
+            p.start()  
             procs.append(p)
-            _, image_part[i] = pool.apply(infer, (new_model, original_image_part[i]))
+            
+        for pro in procs:
+            pro.close()
+            pro.join()
+        
+        '''
+        1 | 3
+        ----- 
+        2 | 4
+        '''
+        vertical_img1 = cv2.vconcat([image_part[0], image_part[1]])
+        vertical_img2 = cv2.vconcat([image_part[2], image_part[3]])
 
-            pool.close()
-            pool.join()
-        cv2.imshow("VideoFrame", frame)
-        #cv2.imshow("VideoFrame", enhanced_image)
+        rst_img = cv2.hconcat([vertical_img1, vertical_img2])
+        cv2.imshow("VideoFrame", rst_img)
     
     # 카메라 장치에서 받아온 메모리 해제
     capture.release()
