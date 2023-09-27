@@ -12,7 +12,7 @@ from glob import glob
 import time
 import cv2
 import multiprocessing
-
+from huggingface_hub import from_pretrained_keras
 
 def infer(model, original_image):
     image = keras.utils.img_to_array(original_image)
@@ -28,7 +28,6 @@ def infer(model, original_image):
     original_image = Image.fromarray(np.uint8(original_image))
     return output_image, np.uint8(output_image)
 
-
 def read_image(image_path):
     image = tf.io.read_file(image_path)
     image = tf.image.decode_png(image, channels=3)
@@ -36,7 +35,7 @@ def read_image(image_path):
     image = tf.cast(image, dtype=tf.float32) / 255.0
     return image
 
-def multi_infer(model, original_image, n):
+def multi_infer(model, original_image, image_part, n):
     _, enhanced_image = infer(model, original_image)
     image_part[i] = enhanced_image
 
@@ -44,17 +43,25 @@ if __name__=='__main__':
     print("hello")
 
     desired_size = (600, 400)
-    new_model = tf.keras.models.load_model('mirnet', compile=False)
+    #save_option = tf.saved_model.SaveOptions(experimental_io_device="/job:localhost")
+
+    #model = tf.keras.models.load_model('mirnet', compile=False, options=save_option)
+    #model = from_pretrained_keras("keras-io/lowlight-enhance-mirnet")
+
+    models = [tf.keras.models.load_model('mirnet', compile=False) for _ in range(4)]
+    print("--------------------")
+    print(models)
+    print("--------------------")
 
     # 공공데이터 충청남도 천안시_교통정보 CCTV RTSP
-    capture = cv2.VideoCapture('rtsp://210.99.70.120:1935/live/cctv001.stream') # 노트북의 경우 0, 외부 장치 번호가 1~n 까지 순차적으로 할당
+    capture = cv2.VideoCapture('rtsp://210.99.70.120:1935/live/cctv002.stream') # 노트북의 경우 0, 외부 장치 번호가 1~n 까지 순차적으로 할당
 
     # 카메라의 속성 설정 메서드 set
     # capture.set(propid, value)로 카메라의 속성(propid)과 값(value)을 설정
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 600*2)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 400*2)
 
-    count = 0 
+    count = 0
 
     # while을 통해서 카메라에서 프레임을 지속적으로 받는다.
     while cv2.waitKey(33) < 0:
@@ -68,30 +75,25 @@ if __name__=='__main__':
         original_image_part.append(frame[400:800, 0:600].copy())
         original_image_part.append(frame[0:400, 600:1200].copy())
         original_image_part.append(frame[400:800, 600:1200].copy())
-
-        #original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
-        #_, enhanced_image = infer(new_model, original_image)
-        image_part = [0]*4
         procs = []
+        image_part = [0]*4
         for i in range(4):
-            p = multiprocessing.Process(target=multi_infer, args=(new_model, original_image_part[i], i))
+            p = multiprocessing.Process(target= multi_infer, args=(models[i], original_image_part[i], image_part,i))
             p.start()  
             procs.append(p)
-            
-        for pro in procs:
-            pro.close()
-            pro.join()
+            #_, image_part[i] = infer(models[i], original_image_part[i])
         
-        '''
-        1 | 3
-        ----- 
-        2 | 4
-        '''
+
+        for pro in procs:
+            pro.join()
         vertical_img1 = cv2.vconcat([image_part[0], image_part[1]])
         vertical_img2 = cv2.vconcat([image_part[2], image_part[3]])
 
         rst_img = cv2.hconcat([vertical_img1, vertical_img2])
         cv2.imshow("VideoFrame", rst_img)
+        #original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
+        #_, enhanced_image = infer(new_model, original_image)
+   
     
     # 카메라 장치에서 받아온 메모리 해제
     capture.release()
