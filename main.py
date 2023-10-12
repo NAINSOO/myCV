@@ -91,7 +91,7 @@ if __name__=='__main__':
         rst_img = model.infer(frame) 
         #input size (512, 512)
 
-        cv2.imshow("VideoFrame", rst_img)
+        cv2.imshow("VideoFrame", cv2.hconcat([cv2.resize(frame, dsize=model.desired_size, interpolation=cv2.INTER_LINEAR), rst_img]))
         
     
     # 카메라 장치에서 받아온 메모리 해제
