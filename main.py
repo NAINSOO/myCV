@@ -20,7 +20,7 @@ class dce:
     def infer(self, image):
         orginal_image = self.preprocessing(image)
         curr= time.time()
-        enhanced_image =  model.predict(orginal_image, batch_size=4)
+        enhanced_image =  self.model.predict(orginal_image, batch_size=4)
         print(f"image inference time : {time.time()-curr}")
         return self.postprocessing(enhanced_image)
 
