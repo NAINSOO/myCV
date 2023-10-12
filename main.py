@@ -13,40 +13,62 @@ import time
 import cv2
 import multiprocessing
 
-def infer(model, images):
-    curr = time.time()
-    imgs = []
-    for image in images:
-        img = keras.utils.img_to_array(image)
-        img = img.astype("float32") / 255.0
-        img = np.expand_dims(img, axis=0)
-        imgs.append(img)
-    
-    image = np.concatenate(imgs,axis=0)
-    print(f"image preprocessing time : {time.time()-curr}")
-    curr= time.time()
-    output = model.predict(image, batch_size=4)
-    print(f"image inference time : {time.time()-curr}")
-    curr= time.time()
-    output_image = output[0]
-    output_image = np.array(output_image) * 255
-    output_image = output_image.clip(0, 255)
-    
-    output_images = []
-    for img in output_image:
-        image = Image.fromarray(np.uint8(img))
-        output_images.append(np.uint8(image))
-    #output_image = Image.fromarray(np.uint8(output_image))
-    print(f"image postprocessing time : {time.time()-curr}")
+class dce:
+    def __init__(self, model:str, size):
+        self.model = tf.keras.models.load_model(model, compile=False)
+        self.desired_size = size
+    def infer(self, image):
+        orginal_image = self.preprocessing(image)
+        curr= time.time()
+        enhanced_image =  model.predict(orginal_image, batch_size=4)
+        print(f"image inference time : {time.time()-curr}")
+        return self.postprocessing(enhanced_image)
 
-    return output_images
+    def preprocessing(self, image):
+        curr = time.time()
+
+        original_image = cv2.resize(image, dsize=self.desired_size, interpolation=cv2.INTER_LINEAR)
+
+        original_image_part = []
+        original_image_part.append(original_image[0:256, 0:256].copy())
+        original_image_part.append(original_image[256:512, 0:256].copy())
+        original_image_part.append(original_image[0:256, 256:512].copy())
+        original_image_part.append(original_image[256:512, 256:512].copy())
+
+        imgs = []
+        for image in original_image_part:
+            img = keras.utils.img_to_array(image)
+            img = img.astype("float32") / 255.0
+            img = np.expand_dims(img, axis=0)
+            imgs.append(img)
+        image = np.concatenate(imgs,axis=0)
+        print(f"image preprocessing time : {time.time()-curr}")
+        return image
+    
+    def postprocessing(self, images):
+        curr= time.time()
+        output_image = images[0]
+        output_image = np.array(output_image) * 255
+        output_image = output_image.clip(0, 255)
+    
+        output_images = []
+        for img in output_image:
+            image = Image.fromarray(np.uint8(img))
+            output_images.append(np.uint8(image))
+        #output_image = Image.fromarray(np.uint8(output_image))
+        print(f"image postprocessing time : {time.time()-curr}")
+
+        vertical_img1 = cv2.vconcat([output_images[0], output_images[1]])
+        vertical_img2 = cv2.vconcat([output_images[2], output_images[3]])
+
+        rst_img = cv2.hconcat([vertical_img1, vertical_img2])
+        return rst_img
+
+
 
 if __name__=='__main__':
-    print("hello")
 
-    desired_size = (512, 512)
-
-    model = tf.keras.models.load_model('dce2', compile=False)
+    model = dce('dce2',size=(512, 512))
 
     rtsp = "rtsp://210.99.70.120:1935/live/cctv002.stream"
     # 공공데이터 충청남도 천안시_교통정보 CCTV RTSP
@@ -60,30 +82,17 @@ if __name__=='__main__':
     count = 0
 
     # while을 통해서 카메라에서 프레임을 지속적으로 받는다.
-    while cv2.waitKey(33) < 0:
+    while cv2.waitKey(10) < 0:
         # ret = 카메라 상태, 비정상이면 False
         # frame = 현재 시점의 프레임
         ret, frame = capture.read()
         # flip : flipcode 가 0 이면 가로대칭 변경. 1이면 세로대칭 변경 
         
-        original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
+        rst_img = model.infer(frame) 
+        #input size (512, 512)
 
-        original_image_part = []
-        original_image_part.append(original_image[0:256, 0:256].copy())
-        original_image_part.append(original_image[256:512, 0:256].copy())
-        original_image_part.append(original_image[0:256, 256:512].copy())
-        original_image_part.append(original_image[256:512, 256:512].copy())
-        
-        image_part = infer(model, original_image_part)
-        
-        vertical_img1 = cv2.vconcat([image_part[0], image_part[1]])
-        vertical_img2 = cv2.vconcat([image_part[2], image_part[3]])
-
-        rst_img = cv2.hconcat([vertical_img1, vertical_img2])
         cv2.imshow("VideoFrame", rst_img)
-        #original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
-        #_, enhanced_image = infer(new_model, original_image)
-   
+        
     
     # 카메라 장치에서 받아온 메모리 해제
     capture.release()
