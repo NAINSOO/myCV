@@ -14,6 +14,7 @@ import cv2
 import multiprocessing
 
 def infer(model, images):
+    curr = time.time()
     imgs = []
     for image in images:
         img = keras.utils.img_to_array(image)
@@ -21,49 +22,40 @@ def infer(model, images):
         img = np.expand_dims(img, axis=0)
         imgs.append(img)
     
-    image =  np.concatenate((imgs[0],imgs[1],imgs[2],imgs[3]),axis=0)
+    image = np.concatenate(imgs,axis=0)
+    print(f"image preprocessing time : {time.time()-curr}")
+    curr= time.time()
     output = model.predict(image, batch_size=4)
-    print("------output-------------")
-    print(output.shape)
-    print(output)
-    output_image = output * 255.0
+    print(f"image inference time : {time.time()-curr}")
+    curr= time.time()
+    output_image = output[0]
+    output_image = np.array(output_image) * 255
     output_image = output_image.clip(0, 255)
-    print(output_image.shape)
-    '''
-    output_image = output_image.reshape(
-        (4, np.shape(output_image)[1], np.shape(output_image)[2], 3)
-    )
-    '''
+    
     output_images = []
     for img in output_image:
         image = Image.fromarray(np.uint8(img))
         output_images.append(np.uint8(image))
     #output_image = Image.fromarray(np.uint8(output_image))
+    print(f"image postprocessing time : {time.time()-curr}")
+
     return output_images
-
-def read_image(image_path):
-    image = tf.io.read_file(image_path)
-    image = tf.image.decode_png(image, channels=3)
-    image.set_shape([600, 400, 3])
-    image = tf.cast(image, dtype=tf.float32) / 255.0
-    return image
-
 
 if __name__=='__main__':
     print("hello")
 
-    desired_size = (600, 400)
+    desired_size = (512, 512)
 
-    model = tf.keras.models.load_model('mirnet', compile=False)
+    model = tf.keras.models.load_model('dce2', compile=False)
 
-
+    rtsp = "rtsp://210.99.70.120:1935/live/cctv002.stream"
     # 공공데이터 충청남도 천안시_교통정보 CCTV RTSP
-    capture = cv2.VideoCapture('rtsp://210.99.70.120:1935/live/cctv002.stream') # 노트북의 경우 0, 외부 장치 번호가 1~n 까지 순차적으로 할당
+    capture = cv2.VideoCapture('testvideo.mp4') # 노트북의 경우 0, 외부 장치 번호가 1~n 까지 순차적으로 할당
 
     # 카메라의 속성 설정 메서드 set
     # capture.set(propid, value)로 카메라의 속성(propid)과 값(value)을 설정
-    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 600*2)
-    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 400*2)
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 512)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 512)
 
     count = 0
 
@@ -74,15 +66,15 @@ if __name__=='__main__':
         ret, frame = capture.read()
         # flip : flipcode 가 0 이면 가로대칭 변경. 1이면 세로대칭 변경 
         
+        original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
+
         original_image_part = []
-        original_image_part.append(frame[0:400, 0:600].copy())
-        original_image_part.append(frame[400:800, 0:600].copy())
-        original_image_part.append(frame[0:400, 600:1200].copy())
-        original_image_part.append(frame[400:800, 600:1200].copy())
+        original_image_part.append(original_image[0:256, 0:256].copy())
+        original_image_part.append(original_image[256:512, 0:256].copy())
+        original_image_part.append(original_image[0:256, 256:512].copy())
+        original_image_part.append(original_image[256:512, 256:512].copy())
         
         image_part = infer(model, original_image_part)
-        
-
         
         vertical_img1 = cv2.vconcat([image_part[0], image_part[1]])
         vertical_img2 = cv2.vconcat([image_part[2], image_part[3]])
