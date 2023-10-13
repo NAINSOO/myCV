@@ -143,6 +143,8 @@ if __name__=='__main__':
         
         rst_img = model.infer(frame) 
         #input size (512, 512)
+        rst_img = homorphic_filter(rst_img)
+        rst_img = cv2.GaussianBlur(rst_img, (0, 0), 3)
 
         cv2.imshow("VideoFrame", cv2.hconcat([cv2.resize(frame, dsize=model.desired_size, interpolation=cv2.INTER_LINEAR), rst_img]))
         
