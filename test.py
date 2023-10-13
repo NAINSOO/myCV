@@ -111,7 +111,7 @@ if __name__=='__main__':
 
     desired_size = (512, 512)
 
-    model = tf.keras.models.load_model('mirnet4', compile=False)
+    model = tf.keras.models.load_model('dce2', compile=False)
 
 
     # 공공데이터 충청남도 천안시_교통정보 CCTV RTSP
@@ -136,6 +136,7 @@ if __name__=='__main__':
             original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
             image = infer(model, original_image)
             image = homorphic_filter(image)
+            image = cv2.GaussianBlur(image, (0, 0), 1)
             cv2.imshow("VideoFrame", cv2.hconcat([original_image, image]))
         
     
