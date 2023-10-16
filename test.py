@@ -109,21 +109,21 @@ def read_image(image_path):
 if __name__=='__main__':
     print("hello")
 
-    desired_size = (512, 512)
+    desired_size = (256, 256)
 
-    model = tf.keras.models.load_model('dce2', compile=False)
+    model = tf.keras.models.load_model('photon3', compile=False)
 
 
     # 공공데이터 충청남도 천안시_교통정보 CCTV RTSP
 
     risp_address= 'rtsp://210.99.70.120:1935/live/cctv002.stream'
 
-    capture = cv2.VideoCapture('testvideo.mp4') # 노트북의 경우 0, 외부 장치 번호가 1~n 까q지 순차적으로 할당
+    capture = cv2.VideoCapture('testvideo2.mp4') # 노트북의 경우 0, 외부 장치 번호가 1~n 까q지 순차적으로 할당
 
     # 카메라의 속성 설정 메서드 set
     # capture.set(propid, value)로 카메라의 속성(propid)과 값(value)을 설정
-    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 512)
-    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 512)
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 256)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 256)
     count = 0
 
     # while을 통해서 카메라에서 프레임을 지속적으로 받는다.
@@ -135,8 +135,6 @@ if __name__=='__main__':
         if ret:
             original_image = cv2.resize(frame, dsize=desired_size, interpolation=cv2.INTER_LINEAR)
             image = infer(model, original_image)
-            image = homorphic_filter(image)
-            image = cv2.GaussianBlur(image, (0, 0), 1)
             cv2.imshow("VideoFrame", cv2.hconcat([original_image, image]))
         
     
