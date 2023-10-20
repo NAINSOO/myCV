@@ -1,0 +1,10 @@
+#left_label{
+    float : left;
+    margin-left: 20%;
+    font-size: large;
+}
+#right_label{
+    float : right;
+    margin-right: 20%;
+    font-size: large;
+}
