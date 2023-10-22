@@ -120,7 +120,7 @@ def homorphic_filter(img):
 
 class mirnet:
     def __init__(self, size):
-        self.model = tf.keras.models.load_model("photon3", compile=False)
+        self.model = tf.keras.models.load_model("fast_mirnet", compile=False)
         self.desired_size = size
     def infer(self, image):
         orginal_image = self.preprocessing(image)
